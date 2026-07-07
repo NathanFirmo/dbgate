@@ -1,0 +1,5 @@
+# Set repositoryID after adding the Helm repository in Artifact Hub
+# to enable the verified publisher badge.
+owners:
+  - name: NathanFirmo
+    email: nathanssfirmo@gmail.com
