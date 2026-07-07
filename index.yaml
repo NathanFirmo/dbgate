@@ -14,6 +14,39 @@ entries:
           url: https://github.com/NathanFirmo/dbgate/issues
     apiVersion: v2
     appVersion: 0.1.0
+    created: "2026-07-07T19:04:31.391950002Z"
+    description: HTTP database gateway for test workflows
+    digest: 39c664bda7f999be94f2e92a2a0c17bc8b0e5c89e03520c37234fc1dc0f930de
+    home: https://github.com/NathanFirmo/dbgate
+    keywords:
+    - database
+    - mysql
+    - mongodb
+    - testing
+    - gateway
+    maintainers:
+    - email: nathanssfirmo@gmail.com
+      name: NathanFirmo
+    name: dbgate
+    sources:
+    - https://github.com/NathanFirmo/dbgate
+    type: application
+    urls:
+    - dbgate-0.1.1.tgz
+    version: 0.1.1
+  - annotations:
+      artifacthub.io/category: database
+      artifacthub.io/changes: |
+        - kind: added
+          description: Initial Helm chart release for dbgate.
+      artifacthub.io/license: MIT
+      artifacthub.io/links: |
+        - name: source
+          url: https://github.com/NathanFirmo/dbgate
+        - name: support
+          url: https://github.com/NathanFirmo/dbgate/issues
+    apiVersion: v2
+    appVersion: 0.1.0
     created: "2026-07-07T17:16:02.505776896Z"
     description: HTTP database gateway for test workflows
     digest: d7d5ee2c16b23dd8a62efd50c08b921ec16fb000b7c3510f3005cb40f4eca205
@@ -34,4 +67,4 @@ entries:
     urls:
     - dbgate-0.1.0.tgz
     version: 0.1.0
-generated: "2026-07-07T17:16:02.505787625Z"
+generated: "2026-07-07T19:04:31.391957602Z"
