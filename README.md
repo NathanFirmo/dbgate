@@ -217,7 +217,14 @@ docker run --rm \
 Target Docker Hub image naming for publication:
 
 ```text
-user/dbgate:<tag>
+nathanfirmo/dbgate:<tag>
+```
+
+Push to Docker Hub:
+
+```bash
+docker build -t nathanfirmo/dbgate:latest .
+docker push nathanfirmo/dbgate:latest
 ```
 
 ## Kubernetes deploy example
@@ -246,6 +253,23 @@ The release targets namespace `test-tools` and the chart exposes:
 - `image.pullPolicy`
 - `config.databases`
 - `service.port`
+
+## Taskfile usage
+
+The repository includes a `Taskfile.yaml` for common local workflows:
+
+```bash
+task
+task docker:push
+task helm:deploy
+```
+
+Available image-related tasks:
+
+- `task docker:build`: build `nathanfirmo/dbgate:latest`
+- `task docker:push`: build and push `nathanfirmo/dbgate:latest`
+- `task docker:push-local`: build and push `localhost:5001/dbgate:latest`
+- `task helm:deploy-local`: deploy the chart using the localhost registry image
 
 ## Artifact Hub
 

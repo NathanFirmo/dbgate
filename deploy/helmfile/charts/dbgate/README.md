@@ -7,7 +7,9 @@
 - `image.repository`: container image repository
 - `image.tag`: container image tag
 - `image.pullPolicy`: image pull policy
+- `service.type`: Kubernetes service type, default `ClusterIP`
 - `service.port`: service and container port, default `9999`
+- `service.nodePort`: optional fixed NodePort when `service.type` is `NodePort`
 - `config.databases`: list of MySQL and MongoDB database definitions rendered into `dbgate.yaml`
 
 ## Install
@@ -21,8 +23,13 @@ helm install dbgate dbgate/dbgate -n test-tools --create-namespace
 
 ```yaml
 image:
-  repository: docker.io/user/dbgate
+  repository: docker.io/nathanfirmo/dbgate
   tag: latest
+
+service:
+  type: NodePort
+  port: 9999
+  nodePort: 30007
 
 config:
   databases:

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: dbgate
-          image: user/dbgate:latest
+          image: nathanfirmo/dbgate:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9999

@@ -1,0 +1,65 @@
+version: "3"
+
+vars:
+  IMAGE_REPOSITORY: '{{default "nathanfirmo/dbgate" .IMAGE_REPOSITORY}}'
+  LOCAL_IMAGE_REPOSITORY: '{{default "localhost:5001/dbgate" .LOCAL_IMAGE_REPOSITORY}}'
+  IMAGE_TAG: '{{default "latest" .IMAGE_TAG}}'
+  IMAGE: "{{.IMAGE_REPOSITORY}}:{{.IMAGE_TAG}}"
+  LOCAL_IMAGE: "{{.LOCAL_IMAGE_REPOSITORY}}:{{.IMAGE_TAG}}"
+  NAMESPACE: '{{default "test-tools" .NAMESPACE}}'
+
+tasks:
+  default:
+    desc: List all available tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  docker:build:
+    desc: Build the dbgate Docker image locally
+    cmds:
+      - docker build -t {{.IMAGE}} .
+
+  docker:push:
+    desc: Build and push the dbgate image to Docker Hub
+    cmds:
+      - task: docker:build
+      - docker push {{.IMAGE}}
+
+  docker:push-local:
+    desc: Build and push the dbgate image to localhost:5001
+    cmds:
+      - docker build -t {{.LOCAL_IMAGE}} .
+      - docker push {{.LOCAL_IMAGE}}
+
+  kube:apply:
+    desc: Apply the sample Kubernetes manifests using the default Docker Hub image
+    cmds:
+      - kubectl create namespace {{.NAMESPACE}} --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl apply -f deploy/kubernetes/configmap.yaml
+      - kubectl apply -f deploy/kubernetes/deployment.yaml
+
+  helm:deploy:
+    desc: Deploy the local Helm chart using the default Docker Hub image
+    cmds:
+      - >
+        helm upgrade --install dbgate ./deploy/helmfile/charts/dbgate
+        -n {{.NAMESPACE}}
+        --create-namespace
+        --set image.repository={{.IMAGE_REPOSITORY}}
+        --set image.tag={{.IMAGE_TAG}}
+
+  helm:deploy-local:
+    desc: Deploy the local Helm chart using the localhost:5001 image
+    cmds:
+      - >
+        helm upgrade --install dbgate ./deploy/helmfile/charts/dbgate
+        -n {{.NAMESPACE}}
+        --create-namespace
+        --set image.repository={{.LOCAL_IMAGE_REPOSITORY}}
+        --set image.tag={{.IMAGE_TAG}}
+
+  kube:port-forward:
+    desc: Port-forward the dbgate service to localhost:9999
+    cmds:
+      - kubectl -n {{.NAMESPACE}} port-forward svc/dbgate 9999:9999
