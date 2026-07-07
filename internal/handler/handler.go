@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,9 +14,24 @@ import (
 	mysqlexecutor "dbgate/internal/executor/mysql"
 )
 
+const (
+	maxJSONBodyBytes = 1 << 20
+	maxSQLBodyBytes  = 16 << 20
+)
+
+type mysqlExecutor interface {
+	Exec(ctx context.Context, name string, statement string) error
+	Query(ctx context.Context, name string, statement string) ([]map[string]any, error)
+}
+
+type mongoExecutor interface {
+	Exec(ctx context.Context, name string, request mongoexecutor.ExecRequest) (map[string]any, error)
+	Query(ctx context.Context, name string, request mongoexecutor.QueryRequest) ([]map[string]any, error)
+}
+
 type Handler struct {
-	mysql *mysqlexecutor.Executor
-	mongo *mongoexecutor.Executor
+	mysql mysqlExecutor
+	mongo mongoExecutor
 }
 
 type databaseRequest struct {
@@ -44,12 +60,18 @@ type mongoQueryRequest struct {
 }
 
 func New(mysql *mysqlexecutor.Executor, mongo *mongoexecutor.Executor) http.Handler {
+	return NewWithExecutors(mysql, mongo)
+}
+
+func NewWithExecutors(mysql mysqlExecutor, mongo mongoExecutor) http.Handler {
 	handler := &Handler{mysql: mysql, mongo: mongo}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", handler.handleHealth)
 	mux.HandleFunc("/exec", handler.handleExec)
 	mux.HandleFunc("/query", handler.handleQuery)
+	mux.HandleFunc("/exec-file", handler.handleExecFile)
+	mux.HandleFunc("/query-file", handler.handleQueryFile)
 
 	return mux
 }
@@ -69,7 +91,7 @@ func (h *Handler) handleExec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := readBody(r)
+	body, err := readBody(r, maxJSONBodyBytes)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
@@ -126,7 +148,7 @@ func (h *Handler) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := readBody(r)
+	body, err := readBody(r, maxJSONBodyBytes)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
@@ -184,24 +206,91 @@ func decodeDatabaseRequest(body []byte) (targetDatabase, error) {
 	if err := decodeJSON(body, &request); err != nil {
 		return targetDatabase{}, err
 	}
-
-	parts := strings.SplitN(strings.TrimSpace(request.DB), ":", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return targetDatabase{}, fmt.Errorf("db must be in the format type:name")
-	}
-
-	return targetDatabase{
-		engine: strings.ToLower(parts[0]),
-		name:   parts[1],
-	}, nil
+	return decodeDatabaseTarget(request.DB)
 }
 
-func readBody(r *http.Request) ([]byte, error) {
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+func (h *Handler) handleExecFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "method not allowed"})
+		return
+	}
+
+	target, err := decodeDatabaseTarget(r.URL.Query().Get("db"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	if target.engine != "mysql" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "file-based SQL endpoints support only mysql databases"})
+		return
+	}
+
+	statement, err := readSQLBody(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+
+	if err := h.mysql.Exec(r.Context(), target.name, statement); err != nil {
+		writeExecutionError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *Handler) handleQueryFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"error": "method not allowed"})
+		return
+	}
+
+	target, err := decodeDatabaseTarget(r.URL.Query().Get("db"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	if target.engine != "mysql" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "file-based SQL endpoints support only mysql databases"})
+		return
+	}
+
+	statement, err := readSQLBody(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+
+	rows, err := h.mysql.Query(r.Context(), target.name, statement)
+	if err != nil {
+		writeExecutionError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"rows": rows})
+}
+
+func readBody(r *http.Request, maxBytes int64) ([]byte, error) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("read request body: %w", err)
 	}
+	if int64(len(body)) > maxBytes {
+		return nil, fmt.Errorf("request body exceeds %d bytes", maxBytes)
+	}
 	return body, nil
+}
+
+func readSQLBody(r *http.Request) (string, error) {
+	body, err := readBody(r, maxSQLBodyBytes)
+	if err != nil {
+		return "", err
+	}
+	statement := strings.TrimSpace(string(body))
+	if statement == "" {
+		return "", fmt.Errorf("sql body is required")
+	}
+	return statement, nil
 }
 
 func decodeJSON(body []byte, target any) error {
@@ -214,6 +303,18 @@ func decodeJSON(body []byte, target any) error {
 		return fmt.Errorf("invalid json body: multiple JSON values are not allowed")
 	}
 	return nil
+}
+
+func decodeDatabaseTarget(raw string) (targetDatabase, error) {
+	parts := strings.SplitN(strings.TrimSpace(raw), ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return targetDatabase{}, fmt.Errorf("db must be in the format type:name")
+	}
+
+	return targetDatabase{
+		engine: strings.ToLower(parts[0]),
+		name:   parts[1],
+	}, nil
 }
 
 func writeExecutionError(w http.ResponseWriter, err error) {

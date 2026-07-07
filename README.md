@@ -92,6 +92,40 @@ Response:
 }
 ```
 
+### `POST /exec-file` for large MySQL scripts
+
+For larger SQL files, send raw SQL in the request body instead of embedding it in JSON. The database target is passed as a query parameter.
+
+```bash
+curl -X POST "http://127.0.0.1:9999/exec-file?db=mysql:platform" \
+  -H 'Content-Type: text/plain' \
+  --data-binary @seed.sql
+```
+
+Response:
+
+```json
+{"ok":true}
+```
+
+### `POST /query-file` for large MySQL queries
+
+```bash
+curl -X POST "http://127.0.0.1:9999/query-file?db=mysql:platform" \
+  -H 'Content-Type: text/plain' \
+  --data-binary @query.sql
+```
+
+Response:
+
+```json
+{
+  "rows": [
+    {"id": 1, "name": "alpha"}
+  ]
+}
+```
+
 ### `POST /exec` for MongoDB
 
 Supported operations: `deleteMany`, `deleteOne`, `insertOne`, `insertMany`, `updateOne`, `updateMany`.
@@ -158,6 +192,11 @@ Response:
 
 Database errors are returned in the JSON response body and are never swallowed.
 
+### Request size limits
+
+- JSON endpoints `/exec` and `/query`: about `1 MiB`
+- Raw SQL endpoints `/exec-file` and `/query-file`: about `16 MiB`
+
 ## Docker usage example
 
 Build:
@@ -207,6 +246,23 @@ The release targets namespace `test-tools` and the chart exposes:
 - `image.pullPolicy`
 - `config.databases`
 - `service.port`
+
+## Artifact Hub
+
+This repository now includes a GitHub Actions workflow that publishes the Helm chart from `deploy/helmfile/charts/dbgate` to a GitHub Pages-backed Helm repository. The expected chart repository URL is:
+
+```text
+https://nathanfirmo.github.io/dbgate
+```
+
+To finish publishing on Artifact Hub:
+
+1. Enable GitHub Pages for this repository and set the source branch to `gh-pages`.
+2. Let the `Release Helm Chart` workflow run on `main` so it creates `index.yaml` and chart packages in `gh-pages`.
+3. In Artifact Hub, add a new Helm repository pointing to `https://nathanfirmo.github.io/dbgate`.
+4. After Artifact Hub assigns a repository ID, add that ID to `artifacthub-repo.yml` as `repositoryID:` and push again to enable the `Verified publisher` badge.
+
+Artifact Hub’s current docs state that Helm repositories must expose `artifacthub-repo.yml` at the same level as `index.yaml`, and this workflow copies that file into `gh-pages` automatically.
 
 ## Hurl usage example
 

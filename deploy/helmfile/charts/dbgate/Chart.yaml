@@ -4,3 +4,26 @@ description: HTTP database gateway for test workflows
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
+home: https://github.com/NathanFirmo/dbgate
+sources:
+  - https://github.com/NathanFirmo/dbgate
+keywords:
+  - database
+  - mysql
+  - mongodb
+  - testing
+  - gateway
+maintainers:
+  - name: NathanFirmo
+    email: nathanssfirmo@gmail.com
+annotations:
+  artifacthub.io/category: database
+  artifacthub.io/license: MIT
+  artifacthub.io/links: |
+    - name: source
+      url: https://github.com/NathanFirmo/dbgate
+    - name: support
+      url: https://github.com/NathanFirmo/dbgate/issues
+  artifacthub.io/changes: |
+    - kind: added
+      description: Initial Helm chart release for dbgate.

@@ -1,0 +1,71 @@
+name: Release Helm Chart
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release-chart.yaml"
+      - "artifacthub-repo.yml"
+      - "deploy/helmfile/charts/dbgate/**"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Ensure gh-pages branch exists
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            exit 0
+          fi
+
+          workdir="$(mktemp -d)"
+          trap 'rm -rf "$workdir"' EXIT
+          cd "$workdir"
+
+          git init
+          git checkout --orphan gh-pages
+          touch .nojekyll
+          git add .nojekyll
+          git -c user.name="$GITHUB_ACTOR" -c user.email="$GITHUB_ACTOR@users.noreply.github.com" commit -m "chore: initialize gh-pages"
+          git remote add origin "https://x-access-token:${CR_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin gh-pages
+
+      - name: Release chart repository
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          charts_dir: deploy/helmfile/charts
+          skip_existing: true
+          packages_with_index: true
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Artifact Hub metadata
+        run: |
+          rm -rf .gh-pages
+          git fetch origin gh-pages
+          git worktree add -B gh-pages .gh-pages origin/gh-pages
+          cp artifacthub-repo.yml .gh-pages/artifacthub-repo.yml
+          touch .gh-pages/.nojekyll
+          cd .gh-pages
+          if git diff --quiet -- artifacthub-repo.yml .nojekyll; then
+            exit 0
+          fi
+          git add artifacthub-repo.yml .nojekyll
+          git commit -m "docs: publish artifact hub metadata"
+          git push origin gh-pages
