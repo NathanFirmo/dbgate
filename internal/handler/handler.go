@@ -202,10 +202,21 @@ type targetDatabase struct {
 }
 
 func decodeDatabaseRequest(body []byte) (targetDatabase, error) {
-	var request databaseRequest
-	if err := decodeJSON(body, &request); err != nil {
+	var envelope map[string]json.RawMessage
+	if err := decodeJSON(body, &envelope); err != nil {
 		return targetDatabase{}, err
 	}
+
+	rawDB, ok := envelope["db"]
+	if !ok {
+		return targetDatabase{}, fmt.Errorf("db must be in the format type:name")
+	}
+
+	var request databaseRequest
+	if err := json.Unmarshal(rawDB, &request.DB); err != nil {
+		return targetDatabase{}, fmt.Errorf("invalid json body: json: cannot unmarshal db field: %w", err)
+	}
+
 	return decodeDatabaseTarget(request.DB)
 }
 

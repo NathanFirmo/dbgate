@@ -58,6 +58,44 @@ func TestExecFileRunsMySQLStatement(t *testing.T) {
 	}
 }
 
+func TestQueryAcceptsMySQLJSONBody(t *testing.T) {
+	mysql := &stubMySQLExecutor{
+		queryRows: []map[string]any{{"ok": 1}},
+	}
+	server := NewWithExecutors(mysql, &stubMongoExecutor{})
+
+	request := httptest.NewRequest(http.MethodPost, "/query", strings.NewReader(`{"db":"mysql:platform","sql":"SELECT 1 AS ok"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	}
+	if mysql.queryStatement != "SELECT 1 AS ok" {
+		t.Fatalf("unexpected query statement: %q", mysql.queryStatement)
+	}
+}
+
+func TestExecAcceptsMySQLJSONBody(t *testing.T) {
+	mysql := &stubMySQLExecutor{}
+	server := NewWithExecutors(mysql, &stubMongoExecutor{})
+
+	request := httptest.NewRequest(http.MethodPost, "/exec", strings.NewReader(`{"db":"mysql:platform","sql":"DELETE FROM foo"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	}
+	if mysql.execStatement != "DELETE FROM foo" {
+		t.Fatalf("unexpected exec statement: %q", mysql.execStatement)
+	}
+}
+
 func TestQueryFileReturnsRows(t *testing.T) {
 	mysql := &stubMySQLExecutor{
 		queryRows: []map[string]any{{"total": 2}},
