@@ -1,7 +1,7 @@
 image:
   repository: nathanfirmo/dbgate
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 service:
   type: ClusterIP
