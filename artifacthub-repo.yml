@@ -1,5 +1,6 @@
 # Set repositoryID after adding the Helm repository in Artifact Hub
 # to enable the verified publisher badge.
+repositoryID: 65634dc7-2048-48aa-b0fd-03947845799f
 owners:
   - name: NathanFirmo
     email: nathanssfirmo@gmail.com
