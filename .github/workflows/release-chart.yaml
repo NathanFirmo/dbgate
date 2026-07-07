@@ -63,9 +63,9 @@ jobs:
           cp artifacthub-repo.yml .gh-pages/artifacthub-repo.yml
           touch .gh-pages/.nojekyll
           cd .gh-pages
-          if git diff --quiet -- artifacthub-repo.yml .nojekyll; then
+          git add artifacthub-repo.yml .nojekyll
+          if git diff --cached --quiet --exit-code; then
             exit 0
           fi
-          git add artifacthub-repo.yml .nojekyll
           git commit -m "docs: publish artifact hub metadata"
           git push origin gh-pages
