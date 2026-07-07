@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  namespace: {{ .Release.Namespace }}
+data:
+  dbgate.yaml: |
+    port: {{ .Values.service.port }}
+    databases:
+{{ toYaml .Values.config.databases | indent 6 }}

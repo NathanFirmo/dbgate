@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dbgate
+  namespace: test-tools
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dbgate
+  template:
+    metadata:
+      labels:
+        app: dbgate
+    spec:
+      containers:
+        - name: dbgate
+          image: user/dbgate:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9999
+              name: http
+          env:
+            - name: DBGATE_PORT
+              value: "9999"
+          volumeMounts:
+            - name: config
+              mountPath: /app/dbgate.yaml
+              subPath: dbgate.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: dbgate-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dbgate
+  namespace: test-tools
+spec:
+  type: ClusterIP
+  selector:
+    app: dbgate
+  ports:
+    - name: http
+      port: 9999
+      targetPort: http

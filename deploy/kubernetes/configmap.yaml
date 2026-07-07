@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dbgate-config
+  namespace: test-tools
+data:
+  dbgate.yaml: |
+    port: 9999
+    databases:
+      - name: platform
+        type: mysql
+        dsn: root:mysqlroot@tcp(127.0.0.1:3306)/platform
+      - name: notifications
+        type: mongo
+        uri: mongodb://127.0.0.1:27017
+        database: notifications

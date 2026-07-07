@@ -1,0 +1,20 @@
+releases:
+  - name: dbgate
+    namespace: test-tools
+    chart: ./charts/dbgate
+    values:
+      - image:
+          repository: user/dbgate
+          tag: latest
+          pullPolicy: IfNotPresent
+        service:
+          port: 9999
+        config:
+          databases:
+            - name: platform
+              type: mysql
+              dsn: root:mysqlroot@tcp(127.0.0.1:3306)/platform
+            - name: notifications
+              type: mongo
+              uri: mongodb://127.0.0.1:27017
+              database: notifications
